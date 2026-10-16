@@ -2,6 +2,20 @@
 
 A responsive songwriting and singing workspace. Write lyrics, arrange a song, find rhymes, transpose chords, print a song sheet, and follow the words while you rehearse.
 
+Live app: [Music Go Studio](https://zayaiken21.github.io/Music-Go-Studio/)
+
+## Audio layers
+
+Open **Audio layers → Import audio**, or drop files onto the import area. Import up to 12 browser-decodable audio files per song, with a limit of 30 MB and ten minutes per file. PCM WAV, MP3, M4A/AAC, OGG/Opus, FLAC, and other formats depend on the browser's decoder. Invalid or unsupported files produce an explicit error.
+
+Each layer has a real waveform, name, volume (0–150%), stereo pan, mute, solo, start offset, trim in/out, and Loop to end. Times are seconds. Start moves a clip on the shared timeline; trim chooses the source segment. Loop repeats that segment through the song's session. Click any waveform lane to seek, or use the bottom transport. All layers pause, seek, count in, and loop with the lyric rehearsal. Switching songs or putting the page in the background pauses playback. Audio tails extend the transport beyond the lyric guide.
+
+**WAV mix** renders the audible layers to an actual stereo 44.1 kHz, 16-bit PCM WAV, including volume, pan, master level, mute/solo, trims, offsets, and loops. It excludes the metronome and unrecorded singing. Nonlooping mixes end at the last audible clip; a looping layer renders through the session end. Mix export supports up to ten minutes. Over-range samples are scaled to avoid hard clipping. A missing audible file must be relinked or muted before export.
+
+After recording a vocal idea, select **Add take as audio layer** to combine it with your backing audio. Use headphones when recording over backing tracks to reduce speaker bleed.
+
+Audio blobs are saved on this device in the `music-go-audio` IndexedDB database, separately from the small localStorage songbook. Files are not uploaded to GitHub or any server. If saving fails, the audio remains playable in the current session and the app clearly says it was not saved. Keep original files and download mixes as backups. JSON includes layer settings and local asset references, not embedded audio; on another device, use **Relink audio** to restore each source. Duplicating a song can reuse its source audio on the same device. An imported track keeps its original speed and pitch when the lyric BPM or chord key changes.
+
 ## Included
 
 - A songbook with browser-local autosave, search, duplication, deletion, and JSON backup / restore.
@@ -12,7 +26,7 @@ A responsive songwriting and singing workspace. Write lyrics, arrange a song, fi
 - Semitone transposition for the key, section chord progressions, and inline chord symbols such as `[Am]` or `[C/G]`.
 - Clean song sheets and browser print-to-PDF, tagged singing text, plain lyrics, ChordPro, and complete JSON exports.
 - Lyric-following rehearsal, one-bar visual count-in, optional audible metronome, looping, seek, tap tempo, a reference pitch, and fullscreen where supported.
-- Real microphone voice memos with browser-supported WebM/Opus, M4A, or OGG download. Microphone access starts only after pressing Record; tracks stop after recording. A take is limited to ten minutes. Downloads keep the actual recorded format; files are never renamed to pretend they are WAV or MP3.
+- Real microphone voice memos with browser-supported WebM/Opus, M4A, or OGG download, and an option to add each take as a layer. Microphone access starts only after pressing Record; tracks stop after recording. A take is limited to ten minutes. Downloads keep the actual recorded format; WAV mixes use PCM encoding.
 - Installable PWA with icons, relative URLs for GitHub project Pages, and offline caching after the first complete online visit.
 - Responsive layouts, keyboard tab navigation, visible focus states, reduced-motion support, and a print layout.
 
@@ -43,7 +57,7 @@ Lyrics imports support TXT, simple LRC timestamps, and section headers such as `
 
 Your songbook is stored in this browser’s `localStorage`, under `music-go-studio:v1`. It is not committed to GitHub, sent to a server, or synchronized between devices. Anyone using the same browser profile and site can access that local songbook. Clearing site data removes saved songs. Use Back up songbook or JSON export to keep a copy. If storage is full or disabled, the app shows an error and keeps your current edits in memory so you can download them. Unreadable saved data is preserved until you download recovery data and choose Start fresh.
 
-Recordings exist only in the current tab until downloaded. They are not stored in JSON or browser storage. Online rhyme search contacts Datamuse only when you submit the rhyme form; no lyrics are sent. All core writing and rehearsal functions work without an external account or paid API.
+Voice memos exist only in the current tab until downloaded or explicitly added as an audio layer. Audio layers save to device storage where supported; JSON does not embed their bytes. Online rhyme search contacts Datamuse only when you submit the rhyme form; no lyrics are sent. All core writing and rehearsal functions work without an external account or paid API.
 
 ## Development and checks
 

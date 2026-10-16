@@ -1,10 +1,12 @@
 import {TYPES,KEYS,uid,clamp,esc,lines,words,syllables,section,createSong,demoSong,normalizeSong,sectionLabel,sectionSeconds,timeLabel,stats,timeline,exportLyrics,importLyrics,transposeSong,localRhymes,cleanInline} from './core.js';
 import {Rehearsal,VoiceMemo,playPitch} from './audio.js';
+import {LayerStudio} from './layer-ui.js';
 
 const $=selector=>document.querySelector(selector);
 const $$=selector=>[...document.querySelectorAll(selector)];
 const STORAGE='music-go-studio:v1';
 const icons={
+  layers:'m12 3 10 5-10 5L2 8l10-5ZM2 12l10 5 10-5M2 16l10 5 10-5',
   plus:'M12 5v14M5 12h14',search:'m21 21-4.8-4.8M18 10.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0',upload:'M12 16V3m-5 5 5-5 5 5M4 16v4h16v-4',download:'M12 3v13m-5-5 5 5 5-5M4 17v4h16v-4',help:'M9.5 8a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 2-2.5 4M12 16h.01M22 12A10 10 0 1 1 2 12a10 10 0 0 1 20 0',note:'M9 18V5l11-2v13M9 8l11-2M9 18c0 1.7-1.6 3-3.5 3S2 20.1 2 18.8s1.6-2.8 3.5-2.8S9 16.7 9 18Zm11-2c0 1.7-1.6 3-3.5 3s-3.5-.9-3.5-2.2 1.6-2.8 3.5-2.8 3.5.7 3.5 2',pen:'m16 3 5 5L8 21H3v-5L16 3Zm-2 2 5 5M3 21l5-1',more:'M5 12h.01M12 12h.01M19 12h.01',sheet:'M14 2H5v20h14V7l-5-5Zm0 0v5h5M8 12h8m-8 4h6',mic:'M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0V5Zm-3 6v1a6 6 0 0 0 12 0v-1M12 18v4m-4 0h8',meter:'m12 3-8 17h16L12 3Zm0 4v9m-3-4 7-6M9 17h6',spark:'m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3ZM20 2v4m-2-2h4',arrow:'M5 12h14m-5-5 5 5-5 5',volume:'M11 4 6 8H2v8h4l5 4V4Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14',play:'m8 4 13 8-13 8V4Z',pause:'M8 4v16M16 4v16',restart:'M3 11a9 9 0 1 1 2 7M3 4v7h7',printer:'M7 8V2h10v6M7 16H3V8h18v8h-4M7 12h10v10H7V12Zm11-1h.01',menu:'M4 6h16M4 12h16M4 18h16',close:'m6 6 12 12M6 18 18 6',expand:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',up:'m6 15 6-6 6 6',down:'m6 9 6 6 6-6',copy:'M8 8h13v13H8V8ZM16 8V3H3v13h5',trash:'M3 6h18m-16 0 1 15h12l1-15M9 6V3h6v3M10 10v7m4-7v7',check:'m5 12 4 4L19 6'
 };
 const icon=name=>`<span class="icon">${icons[name]?`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${icons[name]}"></path></svg>`:''}</span>`;
@@ -16,11 +18,13 @@ let stageTimeline=[],stageIndex=-99,stageCounting=false,memoTitle='';
 const taps=[];
 const current=()=>songs.find(s=>s.id===activeId)||songs[0];
 const player=new Rehearsal(updatePlayhead,()=>{setPlayButton(false);toast('Take a breath. That’s your song.');},message=>toast(message));
+const layerStudio=new LayerStudio({getSong:current,player,icon,notify:toast,save:saveAudioSettings,onLengthChanged:refreshAudioTransport,onPlay:()=>togglePlay(true),openView:()=>setView('layers'),download,slug});
 const memo=new VoiceMemo(status=>{$('#memo-status').textContent=status;},(blob,extension)=>{
   if(memoUrl) URL.revokeObjectURL(memoUrl);
   memoUrl=URL.createObjectURL(blob);
   const filename=`${slug(memoTitle||current().title)}-vocal-idea.${extension}`;
-  $('#memo-result').innerHTML=`<div class="memo-result-row"><audio controls src="${memoUrl}" aria-label="Your recorded vocal idea"></audio><a class="button" href="${memoUrl}" download="${esc(filename)}">Download take</a></div>`;
+  layerStudio.memo={blob,name:filename};
+  $('#memo-result').innerHTML=`<div class="memo-result-row"><audio controls src="${memoUrl}" aria-label="Your recorded vocal idea"></audio><a class="button" href="${memoUrl}" download="${esc(filename)}">Download take</a></div><div class="memo-result-actions"><button class="button" data-audio-action="add-memo">${icon('layers')}Add take as audio layer</button></div>`;
   $('#memo-status').textContent='Your take is ready. Download it to keep it; recordings are not included in song backups.';
   $('#record-button').classList.remove('recording');$('#record-button').innerHTML='<span class="record-dot"></span>Record again';
 });
@@ -57,12 +61,15 @@ function persist() {
 function changed({editor=false,metadata=false}={}) {
   current().updatedAt=new Date().toISOString();
   if(player.playing) {player.pause();setPlayButton(false);}
-  stageTimeline=timeline(current());stageIndex=-99;player.load(current(),stats(current()).seconds);
+  stageTimeline=timeline(current());stageIndex=-99;player.load(current(),playbackLength());
   if(editor) renderEditor();if(metadata) renderMetadata();
-  renderSidebar();renderSummary();if(view==='sheet')renderSheet();
+  renderSidebar();renderSummary();if(view==='sheet')renderSheet();if(view==='layers')layerStudio.render();
   saveStatus('Saving…');clearTimeout(saveTimer);saveTimer=setTimeout(persist,350);
 }
 function slug(text) {return text.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase().slice(0,80)||'untitled-song';}
+function playbackLength() {return layerStudio.length;}
+function saveAudioSettings() {current().updatedAt=new Date().toISOString();saveStatus('Saving…');clearTimeout(saveTimer);saveTimer=setTimeout(persist,350);}
+function refreshAudioTransport() {player.song=current();player.length=playbackLength();player.position=clamp(player.position,0,player.length);if(!player.playing)player.seek(player.position);renderSummary();setPlayButton(player.playing);}
 function toast(message, undo=null) {
   clearTimeout(toastTimer);const box=$('#toast');
   box.innerHTML=esc(message)+(undo?' <button class="text-button" data-action="undo" style="color:#a7ccff;margin-left:9px">Undo</button>':'');
@@ -87,10 +94,10 @@ function renderSummary() {
   $('#crumb-title').textContent=song.title||'Untitled song';$('#transport-title').textContent=song.title||'Untitled song';
   $('#transport-subtitle').textContent=`${song.key} ${song.mode} · ${song.bpm} BPM`;
   $('#word-count').textContent=`${info.words} words`;$('#section-count').textContent=`${song.sections.length} sections`;
-  $('#total-duration').textContent=timeLabel(info.seconds);$('#transport-duration').textContent=timeLabel(info.seconds);$('#transport-bpm').textContent=song.bpm;
+  $('#total-duration').textContent=timeLabel(info.seconds);$('#transport-duration').textContent=timeLabel(playbackLength());$('#transport-bpm').textContent=song.bpm;
   $('#transpose-key').innerHTML=`${esc(song.key)} <small>${esc(song.mode)}</small>`;
   $('#arrangement').innerHTML=song.sections.map((s,i)=>`<button class="arrange-item type-${s.type.toLowerCase()}" data-action="jump-section" data-id="${esc(s.id)}"><i class="arrange-dot"></i><span>${esc(sectionLabel(song,i))}${s.repeats>1?` ×${s.repeats}`:''}</span><small>${s.bars*s.repeats} bars · ${timeLabel(sectionSeconds(song,s))}</small></button>`).join('');
-  $('#stage-time').textContent=`${timeLabel(player.position)} / ${timeLabel(info.seconds)}`;
+  $('#stage-time').textContent=`${timeLabel(player.position)} / ${timeLabel(playbackLength())}`;
 }
 function renderEditor() {
   const song=current();
@@ -108,25 +115,28 @@ function renderSheet() {
 }
 function setView(next) {
   view=next;
-  ['write','sheet','rehearse'].forEach(v=>{$(`#${v}-view`).hidden=v!==view;$(`#tab-${v}`).setAttribute('aria-selected',String(v===view));$(`#tab-${v}`).tabIndex=v===view?0:-1;});
+  ['write','sheet','layers','rehearse'].forEach(v=>{$(`#${v}-view`).hidden=v!==view;$(`#tab-${v}`).setAttribute('aria-selected',String(v===view));$(`#tab-${v}`).tabIndex=v===view?0:-1;});
   if(view==='sheet')renderSheet();
   if(view==='write')$$('.lyrics-input').forEach(resizeTextarea);
+  if(view==='layers')layerStudio.render();
   if(view==='rehearse')updatePlayhead(player.position,player.playing,0);
 }
 function openSong(id) {
   persist();player.pause();setPlayButton(false);
   if(memo.active) {memo.stop();toast('Recording stopped. Download your take before leaving the page.');}
   activeId=id;stageTimeline=timeline(current());stageIndex=-99;stageCounting=false;
-  renderMetadata();renderEditor();renderSidebar();renderSummary();player.load(current(),stats(current()).seconds);setView(view);persist();closeSidebar();
+  renderMetadata();renderEditor();renderSidebar();renderSummary();player.load(current(),playbackLength());layerStudio.loadSong();setView(view);persist();closeSidebar();
 }
-function setPlayButton(playing) {$('#play-button').innerHTML=icon(playing?'pause':'play');$('#play-button').setAttribute('aria-label',playing?'Pause rehearsal':'Start rehearsal');}
+function setPlayButton(playing) {$('#play-button').innerHTML=icon(playing?'pause':'play');$('#play-button').setAttribute('aria-label',playing?'Pause rehearsal':'Start rehearsal');layerStudio.setPlaying(playing);}
 function updatePlayhead(position,playing,beat) {
   const song=current();if(!song)return;
-  const length=stats(song).seconds;
+  const length=playbackLength();
   $('#elapsed').textContent=timeLabel(Math.max(0,position));$('#seek').value=length?clamp(position/length*1000,0,1000):0;
   $('#stage-time').textContent=`${timeLabel(Math.max(0,position))} / ${timeLabel(length)}`;
+  layerStudio.updatePlayhead(position,length);
   $('#beat-dots').querySelectorAll('i').forEach((dot,i)=>dot.classList.toggle('on',playing&&i===beat));
   if(position<0) {stageCounting=true;stageIndex=-99;$('#stage-section').textContent='COUNT IN';$('#previous-line').textContent='Take a breath';$('#current-line').textContent=String(Math.ceil(-position/(60/song.bpm)));$('#next-line').textContent='Your song begins in a moment';$('#stage-chords').textContent=song.sections[0]?.chords||'';return;}
+  if(position>=(stageTimeline.at(-1)?.end||0)&&length>stats(song).seconds+.01){stageIndex=-99;$('#stage-section').textContent='AUDIO TAIL';$('#previous-line').textContent=stageTimeline.at(-1)?.text||'';$('#current-line').textContent='Let the music breathe.';$('#next-line').textContent='Your layers keep playing.';$('#stage-chords').textContent='';return;}
   let index=stageTimeline.findIndex(row=>position>=row.start&&position<row.end);
   if(index===-1 && stageTimeline.length) index=stageTimeline.length-1;
   if(index===stageIndex && !stageCounting)return;
@@ -136,11 +146,12 @@ function updatePlayhead(position,playing,beat) {
   $('#stage-section').textContent=row.label.toUpperCase();$('#previous-line').textContent=stageTimeline[index-1]?.text||'';
   $('#current-line').textContent=row.text;$('#next-line').textContent=stageTimeline[index+1]?.text||'Let the last note breathe.';$('#stage-chords').textContent=row.chords;
 }
-async function togglePlay() {
+async function togglePlay(stayView=false) {
   if(player.playing){player.pause();setPlayButton(false);return;}
-  if(!current().sections.some(s=>s.lyrics.trim()||s.type==='Instrumental')){toast('Add a lyric or an instrumental section before rehearsing.');return;}
-  setView('rehearse');setPlayButton(true);
-  await player.play({countIn:$('#count-in').checked,metronome:$('#metronome').checked,loop:$('#loop-song').checked});
+  if(layerStudio.busy){toast('Your audio is still loading. Give it a moment.');return;}
+  if(!layerStudio.mixer.ready&&!current().sections.some(s=>s.lyrics.trim()||s.type==='Instrumental')){toast('Add lyrics, an audio layer, or an instrumental section before rehearsing.');return;}
+  if(!stayView)setView('rehearse');setPlayButton(true);
+  await player.play({countIn:!stayView&&$('#count-in').checked,metronome:$('#metronome').checked,loop:$('#loop-song').checked});
   setPlayButton(player.playing);
 }
 function download(content,name,type='text/plain;charset=utf-8') {
@@ -158,7 +169,7 @@ function newSongDialog() {
   $('#new-title').focus();
 }
 function exportDialog() {
-  dialog(`<h2 class="dialog-title" id="dialog-title">Take your song with you.</h2><p class="dialog-description">Clean words for singing, a chord sheet for playing, or a complete backup for later.</p>${[['tagged','Singing format · TXT','Lyrics with [Verse] and [Chorus] tags. No private directions.'],['plain','Just the lyrics · TXT','Only the words to sing. No headings, chords, or notes.'],['chordpro','ChordPro · CHOPRO','Song details, section chord progressions, and inline chords.'],['json','Complete song backup · JSON','Editable sections, chords, and your private notes.']].map(([value,label,description],i)=>`<label class="export-choice"><input type="radio" name="export-format" value="${value}" ${i===0?'checked':''}><span><strong>${label}</strong><small>${description}</small></span></label>`).join('')}<pre class="export-preview" id="export-preview"></pre><p class="export-note">Repeated sections expand in lyric and ChordPro exports. Use Song sheet → Print / PDF for a printable copy.</p><div class="dialog-actions"><button class="button" data-action="copy-export">${icon('copy')}Copy</button><button class="button primary" data-action="download-export">${icon('download')}Download</button></div>`);
+  dialog(`<h2 class="dialog-title" id="dialog-title">Take your song with you.</h2><p class="dialog-description">Clean words for singing, a chord sheet for playing, or a complete backup for later.</p>${[['tagged','Singing format · TXT','Lyrics with [Verse] and [Chorus] tags. No private directions.'],['plain','Just the lyrics · TXT','Only the words to sing. No headings, chords, or notes.'],['chordpro','ChordPro · CHOPRO','Song details, section chord progressions, and inline chords.'],['json','Song & layer settings · JSON','Editable lyrics, chords, notes, and layer settings. Audio files are not embedded.']].map(([value,label,description],i)=>`<label class="export-choice"><input type="radio" name="export-format" value="${value}" ${i===0?'checked':''}><span><strong>${label}</strong><small>${description}</small></span></label>`).join('')}<pre class="export-preview" id="export-preview"></pre><p class="export-note">Repeated sections expand in lyric and ChordPro exports. JSON saves layer settings; keep audio originals or download a WAV mix. Use Song sheet → Print / PDF for a printable copy.</p><div class="dialog-actions"><button class="button" data-action="copy-export">${icon('copy')}Copy</button><button class="button primary" data-action="download-export">${icon('download')}Download</button></div>`);
   updateExportPreview();
 }
 function exportFormat() {return $('input[name="export-format"]:checked')?.value||'tagged';}
@@ -167,7 +178,7 @@ function addSectionDialog() {
   dialog(`<h2 class="dialog-title" id="dialog-title">Give the song a new turn.</h2><p class="dialog-description">Add a section, then move it wherever it belongs.</p><div class="template-grid">${TYPES.map(type=>`<button class="template-button" data-action="insert-section" data-type="${type}"><strong>${type}</strong><small>${{Verse:'Move your story forward.',Chorus:'Bring the hook home.',Bridge:'A new point of view.',Intro:'Set the feeling.','Pre-Chorus':'Build toward the hook.','Post-Chorus':'Let the feeling linger.',Instrumental:'Let the music speak.',Outro:'Leave a lasting note.'}[type]}</small></button>`).join('')}</div>`);
 }
 function helpDialog() {
-  dialog(`<h2 class="dialog-title" id="dialog-title">A little room to create.</h2><p class="dialog-description">Write a line. Find its rhythm. Sing it your way.</p><ol class="help-list"><li><strong>Write:</strong> give each section its own lyrics, chords, and optional vocal direction. Move sections with the arrows or drag their handle.</li><li><strong>Find the flow:</strong> syllable counts are approximate for English. Sing the line out loud to check its natural stress and breath.</li><li><strong>Rehearse:</strong> bars × pulses per bar set a section’s length. Each nonempty line receives equal time. Set bars to fit your melody. In 6/8, BPM counts eighth-note pulses.</li><li><strong>Transpose:</strong> + and − move the key, section chords, and inline chords like [Am] together. Choosing a key directly only changes its label.</li><li><strong>Save:</strong> songs autosave on this device. Download a JSON song or songbook backup before clearing browser data or switching devices. Import restores a backup as new songs.</li><li><strong>Capture:</strong> Record uses your real microphone. Download the take to keep it. Playback is a guide click and lyric display; vocals come from you.</li><li><strong>Offline:</strong> after the first full visit, the app works without a connection. Rhyme lookup falls back to a small built-in word bank.</li></ol>${recoveryData?'<div class="export-note">Your original saved data is preserved in this session. Download it before choosing to start fresh.</div><div class="dialog-actions"><button class="button" data-action="download-recovery">Download saved data</button><button class="button danger-button" data-action="reset-storage">Start fresh</button></div>':''}<div class="dialog-actions"><button class="button primary" data-action="close-dialog">Back to the song</button></div>`);
+  dialog(`<h2 class="dialog-title" id="dialog-title">A little room to create.</h2><p class="dialog-description">Write a line. Find its rhythm. Sing it your way.</p><ol class="help-list"><li><strong>Write:</strong> give each section its own lyrics, chords, and optional vocal direction. Move sections with the arrows or drag their handle.</li><li><strong>Find the flow:</strong> syllable counts are approximate for English. Sing the line out loud to check its natural stress and breath.</li><li><strong>Rehearse:</strong> bars × pulses per bar set a section’s length. Each nonempty line receives equal time. Set bars to fit your melody. In 6/8, BPM counts eighth-note pulses.</li><li><strong>Transpose:</strong> + and − move the key, section chords, and inline chords like [Am] together. Choosing a key directly only changes its label.</li><li><strong>Save:</strong> songs autosave on this device. Download a JSON song or songbook backup before clearing browser data or switching devices. Import restores a backup as new songs.</li><li><strong>Layers:</strong> import recordings in Audio layers, adjust their volume, pan, start, trim, and loop, and play them alongside your lyrics. WAV mix downloads audible layers. Layer files save on this device; JSON only keeps settings. Relink source files when moving devices.</li><li><strong>Capture:</strong> Record uses your real microphone. Download the take or Add take as audio layer to keep it. Use headphones when recording over a backing track.</li><li><strong>Offline:</strong> after the first full visit, the app works without a connection. Rhyme lookup falls back to a small built-in word bank.</li></ol>${recoveryData?'<div class="export-note">Your original saved data is preserved in this session. Download it before choosing to start fresh.</div><div class="dialog-actions"><button class="button" data-action="download-recovery">Download saved data</button><button class="button danger-button" data-action="reset-storage">Start fresh</button></div>':''}<div class="dialog-actions"><button class="button primary" data-action="close-dialog">Back to the song</button></div>`);
 }
 function songOptionsDialog() {
   dialog(`<h2 class="dialog-title" id="dialog-title">${esc(current().title||'Untitled song')}</h2><p class="dialog-description">Keep exploring an idea, or make space for a new one.</p><div class="options-list"><button class="button" data-action="duplicate-song">${icon('copy')}Duplicate this song</button><button class="button" data-action="export">${icon('download')}Export this song</button><button class="button danger-button" data-action="confirm-delete-song">${icon('trash')}Delete this song</button></div>`);
@@ -250,6 +261,7 @@ document.addEventListener('click',async e=>{
     case 'transpose-up':case 'transpose-down':transposeSong(song,action==='transpose-up'?1:-1);changed({editor:true,metadata:true});toast(`Song transposed to ${song.key} ${song.mode}.`);break;
     case 'pitch':try{await playPitch(song.key);toast(`${song.key} reference pitch · octave 4`);}catch(e){toast(e.message);}break;
     case 'play':await togglePlay();break;
+    case 'open-layers':setView('layers');break;
     case 'restart':player.seek(0);stageIndex=-99;updatePlayhead(0,player.playing,0);break;
     case 'tap':{
       const now=performance.now();if(taps.length&&now-taps.at(-1)>2000)taps.length=0;taps.push(now);if(taps.length>7)taps.shift();
@@ -309,7 +321,7 @@ document.addEventListener('input',e=>{
   const fields={'song-title':'title','song-artist':'artist','song-notes':'notes'};
   if(fields[el.id]){current()[fields[el.id]]=el.value;changed();}
   if(el.id==='song-search')renderSidebar();
-  if(el.id==='seek')player.seek(Number(el.value)/1000*stats(current()).seconds);
+  if(el.id==='seek')player.seek(Number(el.value)/1000*playbackLength());
 });
 document.addEventListener('change',async e=>{
   const el=e.target,field=el.dataset.field,card=el.closest('[data-section]');
@@ -333,10 +345,10 @@ document.addEventListener('keydown',e=>{
   const editing=e.target.closest('input,textarea,select,[contenteditable]');
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();persist();toast('Songs saved on this device. Export a backup for another device.');return;}
   if(e.key==='Escape')closeSidebar();
-  if(e.target.closest('[role="tablist"]')&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const views=['write','sheet','rehearse'];setView(views[(views.indexOf(view)+(e.key==='ArrowRight'?1:2))%3]);$(`#tab-${view}`).focus();return;}
+  if(e.target.closest('[role="tablist"]')&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const views=['write','sheet','layers','rehearse'];setView(views[(views.indexOf(view)+(e.key==='ArrowRight'?1:3))%4]);$(`#tab-${view}`).focus();return;}
   if(editing||$('#app-dialog').open)return;
   if(e.key.toLowerCase()==='n'&&!e.ctrlKey&&!e.metaKey){e.preventDefault();newSongDialog();}
-  if(e.code==='Space'&&view==='rehearse'&&!e.target.closest('button,a')){e.preventDefault();togglePlay();}
+  if(e.code==='Space'&&['rehearse','layers'].includes(view)&&!e.target.closest('button,a')){e.preventDefault();togglePlay(view==='layers');}
 });
 $('#sections').addEventListener('dragstart',e=>{const handle=e.target.closest('.drag-icon');if(!handle)return;dragId=handle.closest('[data-section]').dataset.section;e.dataTransfer.setData('text/plain',dragId);e.dataTransfer.effectAllowed='move';handle.closest('.section-card').classList.add('dragging');});
 $('#sections').addEventListener('dragover',e=>{if(!dragId)return;const card=e.target.closest('[data-section]');if(card&&card.dataset.section!==dragId){e.preventDefault();$$('.drop-target').forEach(c=>c.classList.remove('drop-target'));card.classList.add('drop-target');}});
@@ -345,7 +357,7 @@ $('#sections').addEventListener('dragend',()=>{dragId=null;$$('.dragging,.drop-t
 window.addEventListener('pagehide',()=>{persist();memo.stop();player.pause();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){persist();if(player.playing){player.pause();setPlayButton(false);}}});
 window.addEventListener('resize',()=>{if(view==='write')$$('.lyrics-input').forEach(resizeTextarea);});
-load();renderMetadata();renderEditor();renderSidebar();renderSummary();stageTimeline=timeline(current());player.load(current(),stats(current()).seconds);setView('write');
+load();renderMetadata();renderEditor();renderSidebar();renderSummary();stageTimeline=timeline(current());player.load(current(),playbackLength());setView('write');layerStudio.loadSong();
 $('#rhyme-results').innerHTML=localRhymes('light').slice(0,9).map(w=>`<button class="rhyme-chip" data-action="copy-rhyme" data-word="${w}">${w}</button>`).join('');
 if(storageBlocked)saveStatus('Recovery needed',true);else persist();
 if('serviceWorker' in navigator && ['http:','https:'].includes(location.protocol))navigator.serviceWorker.register('./sw.js').catch(()=>{});

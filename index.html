@@ -55,6 +55,7 @@
             <div class="workspace-tabs" role="tablist" aria-label="Workspace view">
               <button role="tab" id="tab-write" aria-controls="write-view" aria-selected="true" data-view="write"><span class="icon" data-icon="pen"></span>Write</button>
               <button role="tab" id="tab-sheet" aria-controls="sheet-view" aria-selected="false" data-view="sheet"><span class="icon" data-icon="sheet"></span>Song sheet</button>
+              <button role="tab" id="tab-layers" aria-controls="layers-view" aria-selected="false" data-view="layers"><span class="icon" data-icon="layers"></span>Audio layers</button>
               <button role="tab" id="tab-rehearse" aria-controls="rehearse-view" aria-selected="false" data-view="rehearse"><span class="icon" data-icon="mic"></span>Rehearse</button>
               <span class="word-count" id="word-count">0 words</span>
             </div>
@@ -68,11 +69,22 @@
               <div class="view-toolbar"><span>A clean sheet, ready to sing.</span><label class="switch-label"><input type="checkbox" id="sheet-chords" checked>Show chords</label><button class="text-button" data-action="print"><span class="icon" data-icon="printer"></span>Print / PDF</button></div>
               <article id="song-sheet" class="song-sheet"></article>
             </div>
+            <div id="layers-view" role="tabpanel" aria-labelledby="tab-layers" hidden>
+              <div class="audio-intro"><div><div class="eyebrow">YOUR WORDS. YOUR SOUND.</div><h2>Build your sound, layer by layer.</h2><p>Bring in piano, a beat, harmonies, or a voice memo.</p></div><button class="button primary" data-audio-action="import" id="import-audio-button"><span class="icon" data-icon="plus"></span>Import audio</button></div>
+              <div class="mix-bar"><button class="button mix-play" data-audio-action="play" id="layer-play-button"><span class="icon" data-icon="play"></span>Play layers</button><div class="master-volume"><label for="master-volume">Master volume</label><input type="range" id="master-volume" min="0" max="100" value="85"><output id="master-value" for="master-volume">85%</output></div><button class="button" data-audio-action="export" id="export-mix-button"><span class="icon" data-icon="download"></span>WAV mix</button></div>
+              <div class="audio-timeline-heading"><span id="audio-layer-count">0 / 12 layers</span><span id="audio-session-duration">Session · 0:00</span></div>
+              <div class="audio-ruler" id="audio-ruler" aria-hidden="true"></div>
+              <div id="audio-layer-list" class="audio-layer-list"></div>
+              <button class="audio-drop" id="audio-drop" data-audio-action="import"><span class="icon" data-icon="upload"></span><strong>Drop your audio here, or choose a file</strong><span>WAV, MP3, M4A, OGG, FLAC &amp; other browser-supported audio</span><small>Up to 12 layers · 30 MB and 10 minutes per file</small></button>
+              <p class="audio-status" id="audio-status" role="status">Import your first recording to start layering.</p>
+              <div class="audio-footnotes"><span class="icon" data-icon="check"></span><p>Audio stays on this device. Keep your originals or download a mix as a backup. Song JSON includes layer settings; relink the files when moving to another device.</p></div>
+              <p class="subtle-help">All layers follow the same play, pause, and seek controls as your lyrics. Start and trim values are in seconds. BPM and chord transposition change the lyric guide; imported audio keeps its original speed and pitch.</p>
+            </div>
             <div id="rehearse-view" role="tabpanel" aria-labelledby="tab-rehearse" hidden>
               <div class="view-toolbar"><span>Find your breath. Follow your words.</span><label class="switch-label"><input type="checkbox" id="loop-song">Loop song</label></div>
               <div class="performance-stage" id="performance-stage"><div class="stage-top"><span class="live-dot"></span><span id="stage-section">READY WHEN YOU ARE</span><button class="icon-button" data-action="fullscreen" aria-label="Enter fullscreen rehearsal"><span class="icon" data-icon="expand"></span></button></div><div class="stage-lyrics"><p id="previous-line"></p><p id="current-line">Your voice starts here.</p><p id="next-line">Press play to follow your song.</p></div><div id="stage-chords" class="stage-chords"></div><div class="stage-bottom"><div class="beat-dots" id="beat-dots"></div><span id="stage-time">0:00 / 0:00</span></div></div>
               <div class="rehearsal-settings"><label class="switch-label"><input type="checkbox" id="count-in" checked>One-bar count-in</label><label class="switch-label"><input type="checkbox" id="metronome">Metronome</label><button class="text-button" data-action="pitch"><span class="icon" data-icon="note"></span>Hear starting key</button></div>
-              <p class="subtle-help">Line timing follows your section bars and tempo. Rehearsal plays a guide click when enabled; you sing the vocals.</p>
+              <p class="subtle-help">Your imported layers play alongside the lyrics. Line timing follows your section bars and tempo. <button class="text-button" data-action="open-layers">Open audio layers</button></p>
               <div class="memo-card"><div class="memo-heading"><span class="memo-icon icon" data-icon="mic"></span><div><h3>Catch the melody</h3><p>Record a quick vocal idea, then download your take.</p></div><button class="button record-button" data-action="record" id="record-button"><span class="record-dot"></span>Record</button></div><div id="memo-result"></div><p class="memo-status" id="memo-status" role="status">Microphone permission is requested only when you record.</p></div>
             </div>
             <footer class="workspace-footer">Made for the moment inspiration shows up.<span>WRITE. ARRANGE. SING.</span></footer>
@@ -92,6 +104,7 @@
   <button id="sidebar-shade" class="sidebar-shade" data-action="menu" aria-label="Close songbook" hidden></button>
   <div id="toast" class="toast" role="status" hidden></div>
   <input type="file" id="file-import" accept=".txt,.json,.lrc,text/plain,application/json" hidden>
+  <input type="file" id="audio-import" accept="audio/*,.wav,.mp3,.m4a,.mp4,.aac,.ogg,.opus,.webm,.flac,.aif,.aiff" multiple hidden>
   <dialog id="app-dialog" aria-labelledby="dialog-title"><div class="dialog-top"><span class="dialog-eyebrow">MUSIC GO STUDIO</span><button class="icon-button" data-action="close-dialog" aria-label="Close dialog"><span class="icon" data-icon="close"></span></button></div><div id="dialog-content"></div></dialog>
   <noscript><p class="noscript">Enable JavaScript to write and save songs in Music Go Studio.</p></noscript>
 </body>

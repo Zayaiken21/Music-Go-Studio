@@ -1,3 +1,4 @@
+import {normalizeLayer,MAX_LAYERS} from './layer-core.js';
 export const TYPES = ['Intro', 'Verse', 'Pre-Chorus', 'Chorus', 'Post-Chorus', 'Bridge', 'Instrumental', 'Outro'];
 export const KEYS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 export const uid = () => globalThis.crypto?.randomUUID?.() || `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -21,7 +22,7 @@ export function section(type = 'Verse', lyrics = '', bars = 8) {
   return { id: uid(), type, lyrics, chords: '', notes: '', bars, repeats: 1 };
 }
 export function createSong(template = 'blank') {
-  const song = { id: uid(), title: 'Untitled song', artist:'', genre:'Pop', key:'C', mode:'major', bpm:90, meter:4, notes:'', updatedAt:new Date().toISOString(), sections:[] };
+  const song = { id: uid(), title: 'Untitled song', artist:'', genre:'Pop', key:'C', mode:'major', bpm:90, meter:4, notes:'', updatedAt:new Date().toISOString(), sections:[], audioLayers:[],masterVolume:.85 };
   const structures = {
     blank:['Verse', 'Chorus'], pop:['Verse', 'Pre-Chorus', 'Chorus', 'Verse', 'Chorus', 'Bridge', 'Chorus'],
     worship:['Verse', 'Chorus', 'Verse', 'Chorus', 'Bridge', 'Chorus', 'Outro'],
@@ -55,6 +56,8 @@ export function normalizeSong(raw) {
     id: uid(), title: text(raw.title, 200) || 'Imported song', artist:text(raw.artist,200), genre:text(raw.genre,80) || 'Pop',
     key: KEYS.includes(raw.key) ? raw.key : 'C', mode:raw.mode==='minor'?'minor':'major', bpm:num(raw.bpm,90,40,240), meter:[3,4,6].includes(Number(raw.meter))?Number(raw.meter):4,
     notes:text(raw.notes,10000), updatedAt:new Date().toISOString(),
+    masterVolume:Number.isFinite(Number(raw.masterVolume))?clamp(Number(raw.masterVolume),0,1):.85,
+    audioLayers:Array.isArray(raw.audioLayers)?raw.audioLayers.slice(0,MAX_LAYERS).filter(item=>item&&typeof item==='object').map(item=>({...normalizeLayer(item),id:uid()})):[],
     sections:(raw.sections.length ? raw.sections : [section()]).map(s => {
       if (!s || typeof s !== 'object') throw new Error('One of the imported sections is invalid.');
       return {id:uid(), type:TYPES.includes(s.type)?s.type:'Verse', lyrics:text(s.lyrics), chords:text(s.chords,1000), notes:text(s.notes,10000), bars:num(s.bars,8,1,64), repeats:num(s.repeats,1,1,8)};

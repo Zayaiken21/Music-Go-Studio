@@ -1,5 +1,5 @@
-const CACHE='music-go-studio-v1.0.0';
-const APP=['./','./index.html','./styles.css','./app.js','./core.js','./audio.js','./manifest.webmanifest','./assets/icon.svg','./assets/icon-192.png','./assets/icon-512.png'];
+const CACHE='music-go-studio-v1.1.0';
+const APP=['./','./index.html','./styles.css','./app.js','./core.js','./audio.js','./layers.js','./layer-core.js','./audio-store.js','./layer-ui.js','./manifest.webmanifest','./assets/icon.svg','./assets/icon-192.png','./assets/icon-512.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(APP)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('music-go-studio-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});
 self.addEventListener('fetch',event=>{

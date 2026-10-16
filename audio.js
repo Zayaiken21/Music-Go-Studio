@@ -1,9 +1,9 @@
 let context;
-export async function audioContext() {
+export async function audioContext(resume=true) {
   const Audio = globalThis.AudioContext || globalThis.webkitAudioContext;
   if (!Audio) throw new Error('Audio playback is unavailable in this browser.');
   if(!context || context.state==='closed') context=new Audio();
-  if(context.state==='suspended') await context.resume();
+  if(resume&&context.state==='suspended') await context.resume();
   return context;
 }
 function tone(ctx, frequency, when, length=.04, volume=.12, type='sine') {
@@ -25,30 +25,33 @@ export async function playPitch(key, minor=false) {
 }
 export class Rehearsal {
   constructor(onTick, onEnd, onError) {
-    this.onTick=onTick;this.onEnd=onEnd;this.onError=onError;this.playing=false;this.position=0;this.frame=0;this.ctx=null;
+    this.onTick=onTick;this.onEnd=onEnd;this.onError=onError;this.playing=false;this.position=0;this.frame=0;this.ctx=null;this.mixer=null;this.epoch=0;this.started=null;this.clockAudio=false;
   }
   load(song, length) {this.pause();this.song=song;this.length=length;this.position=0;this.onTick(0,false,0);}
   async play(options) {
     if(!this.song || this.playing) return;
-    this.options=options;this.playing=true;
-    if(options.metronome) {
-      try {this.ctx=await audioContext();} catch(e) {this.options.metronome=false;this.onError?.(e.message);}
+    this.options=options;this.playing=true;const epoch=++this.epoch;
+    this.clockAudio=false;
+    if(options.metronome||this.mixer?.ready) {
+      try {this.ctx=await audioContext();this.clockAudio=true;} catch(e) {this.options.metronome=false;this.onError?.(e.message);if(this.mixer?.ready){this.pause();return;}}
     }
-    if(!this.playing) return;
+    if(!this.playing||epoch!==this.epoch) return;
     if(this.position>=this.length) this.position=0;
     const count=this.position===0 && options.countIn ? this.song.meter*60/this.song.bpm : 0;
     this.offset=this.position-count;
     this.started=performance.now();
+    this.audioStarted=this.ctx?.currentTime||0;
     this.scheduledBeat=Math.ceil(this.offset/(60/this.song.bpm))-1;
+    if(this.mixer?.ready)this.mixer.play(this.ctx,this.offset,this.length);
     this.tick();
   }
   tick=()=>{
     if(!this.playing) return;
     const beatSeconds=60/this.song.bpm;
-    let position=this.offset+(performance.now()-this.started)/1000;
+    let position=this.clockPosition();
     if(position>=this.length) {
       if(this.options.loop && this.length>0) {
-        position%=this.length;this.offset=position;this.started=performance.now();this.scheduledBeat=Math.ceil(position/beatSeconds)-1;
+        position%=this.length;this.offset=position;this.started=performance.now();this.audioStarted=this.ctx?.currentTime||0;this.scheduledBeat=Math.ceil(position/beatSeconds)-1;if(this.mixer?.ready)this.mixer.play(this.ctx,position,this.length);
       } else {this.position=this.length;this.pause();this.onTick(this.length,false,0);this.onEnd?.();return;}
     }
     this.position=position;
@@ -67,14 +70,16 @@ export class Rehearsal {
     this.onTick(position,true,((beat%this.song.meter)+this.song.meter)%this.song.meter);
     this.frame=requestAnimationFrame(this.tick);
   };
-  pause() {this.playing=false;cancelAnimationFrame(this.frame);this.position=Math.max(0,this.position);}
+  clockPosition() {return this.offset+(this.clockAudio?this.ctx.currentTime-this.audioStarted:(performance.now()-this.started)/1000);}
+  pause() {if(this.playing&&this.started!==null)this.position=this.clockPosition();this.playing=false;this.epoch++;cancelAnimationFrame(this.frame);this.position=Math.max(0,Math.min(this.length||0,this.position));this.started=null;this.mixer?.stop();}
   seek(seconds) {
     this.position=Math.max(0,Math.min(this.length,seconds));
-    this.offset=this.position;this.started=performance.now();this.scheduledBeat=Math.ceil(this.position/(60/this.song.bpm))-1;
+    this.offset=this.position;this.started=performance.now();this.audioStarted=this.ctx?.currentTime||0;this.scheduledBeat=Math.ceil(this.position/(60/this.song.bpm))-1;
+    if(this.playing&&this.mixer?.ready)this.mixer.play(this.ctx,this.position,this.length);
     this.onTick(this.position,this.playing,0);
   }
   async setMetronome(value) {
-    if(value) {try{this.ctx=await audioContext();}catch(e){this.onError?.(e.message);return false;}}
+    if(value) {try{const position=this.playing?this.clockPosition():this.position;this.ctx=await audioContext();if(this.playing&&!this.clockAudio){this.offset=position;this.audioStarted=this.ctx.currentTime;this.started=performance.now();this.clockAudio=true;}}catch(e){this.onError?.(e.message);return false;}}
     if(this.options) this.options.metronome=value;
     return true;
   }
