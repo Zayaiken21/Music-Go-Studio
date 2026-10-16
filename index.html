@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1729">
+  <meta name="description" content="Turn a spark into a song. Write lyrics, arrange verses and choruses, transpose chords, export clean song sheets, and rehearse at your own tempo in Music Go Studio.">
+  <meta name="robots" content="index,follow">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta property="og:title" content="Music Go Studio — Find your next song">
+  <meta property="og:description" content="A beautiful space to write, arrange, and rehearse your songs. Free, browser-local, and ready when inspiration arrives.">
+  <meta property="og:type" content="website">
+  <title>Music Go Studio — Write. Arrange. Sing.</title>
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Music Go Studio","applicationCategory":"MusicApplication","operatingSystem":"Any","description":"Browser-local lyric writing, song arrangement, and singing rehearsal.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to songwriting</a>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Song library">
+      <a class="brand" href="./" aria-label="Music Go Studio home"><img src="assets/icon.svg" alt="" width="39" height="39"><span>music<span class="brand-light">go</span><small>SONGWRITING STUDIO</small></span></a>
+      <button class="button primary new-song" data-action="new"><span class="icon" data-icon="plus"></span> New song <span class="key-hint">N</span></button>
+      <div class="library-heading"><span>YOUR SONGBOOK</span><span id="song-count" class="count">1</span></div>
+      <label class="search-field"><span class="icon" data-icon="search"></span><input id="song-search" type="search" placeholder="Find a song…" aria-label="Find a song"></label>
+      <nav id="song-list" class="song-list" aria-label="Your songs"></nav>
+      <div class="sidebar-bottom">
+        <button class="nav-button" data-action="import"><span class="icon" data-icon="upload"></span>Import lyrics or backup</button>
+        <button class="nav-button" data-action="backup"><span class="icon" data-icon="download"></span>Back up songbook</button>
+        <button class="nav-button" data-action="help"><span class="icon" data-icon="help"></span>Quick guide</button>
+        <div class="local-note"><span class="local-dot"></span><div>Your songs stay yours.<small>Saved in this browser. Back up to keep a copy.</small></div></div>
+      </div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar">
+        <div class="breadcrumb"><button class="icon-button mobile-menu" data-action="menu" aria-label="Open songbook"><span class="icon" data-icon="menu"></span></button><span class="studio-name">The studio</span><span class="crumb-divider">/</span><span id="crumb-title">Room for the Light</span></div>
+        <div class="top-actions"><span class="save-status" id="save-status" role="status"><span></span>Saved on this device</span><button class="button quiet" data-action="export"><span class="icon" data-icon="download"></span><span>Export song</span></button><div class="avatar" title="Your personal studio">M</div></div>
+      </header>
+      <main id="workspace" tabindex="-1">
+        <div class="studio-grid">
+          <section class="song-workspace" aria-label="Song editor">
+            <div class="eyebrow"><span class="tiny-line"></span> A LITTLE IDEA. A WHOLE NEW SONG.</div>
+            <div class="song-heading"><input id="song-title" class="song-title" aria-label="Song title" maxlength="200" placeholder="Give your song a name"><button class="icon-button" data-action="song-options" aria-label="Song options"><span class="icon" data-icon="more"></span></button></div>
+            <div class="song-subline"><span class="icon" data-icon="pen"></span><input id="song-artist" aria-label="Artist or songwriter" placeholder="Add artist or songwriter" maxlength="200"><span class="draft-badge">DRAFT</span></div>
+            <div class="song-settings">
+              <label><span>GENRE</span><select id="song-genre"><option>Pop</option><option>R&amp;B / Soul</option><option>Worship</option><option>Gospel</option><option>Hip-Hop</option><option>Country</option><option>Folk</option><option>Rock</option><option>Ballad</option><option>Other</option></select></label>
+              <label><span>KEY</span><select id="song-key" aria-label="Song key"></select></label>
+              <label class="mode-setting"><span>MODE</span><select id="song-mode"><option value="major">Major</option><option value="minor">Minor</option></select></label>
+              <label><span>TEMPO</span><div class="tempo-field"><input id="song-bpm" type="number" min="40" max="240" value="92" aria-label="Tempo in beats per minute"><small>BPM</small></div></label>
+              <label><span>TIME</span><select id="song-meter"><option value="4">4 / 4</option><option value="3">3 / 4</option><option value="6">6 / 8</option></select></label>
+            </div>
+            <div class="workspace-tabs" role="tablist" aria-label="Workspace view">
+              <button role="tab" id="tab-write" aria-controls="write-view" aria-selected="true" data-view="write"><span class="icon" data-icon="pen"></span>Write</button>
+              <button role="tab" id="tab-sheet" aria-controls="sheet-view" aria-selected="false" data-view="sheet"><span class="icon" data-icon="sheet"></span>Song sheet</button>
+              <button role="tab" id="tab-rehearse" aria-controls="rehearse-view" aria-selected="false" data-view="rehearse"><span class="icon" data-icon="mic"></span>Rehearse</button>
+              <span class="word-count" id="word-count">0 words</span>
+            </div>
+            <div id="write-view" role="tabpanel" aria-labelledby="tab-write">
+              <div class="editor-toolbar"><span>Give your words a place to land.</span><button class="text-button" data-action="toggle-meter"><span class="icon" data-icon="meter"></span><span id="meter-toggle-label">Show syllables</span></button></div>
+              <div id="sections" class="sections"></div>
+              <button class="add-section" data-action="add-section"><span class="icon" data-icon="plus"></span>Add a song section<span>Verse, chorus, bridge &amp; more</span></button>
+              <details class="song-notes"><summary><span class="icon" data-icon="note"></span>Song notes &amp; vocal direction <span>Only for you</span></summary><textarea id="song-notes" rows="4" placeholder="The feeling, the story, the way you want to sing it…" aria-label="Private song notes"></textarea><small>These notes stay separate from your lyric text exports.</small></details>
+            </div>
+            <div id="sheet-view" role="tabpanel" aria-labelledby="tab-sheet" hidden>
+              <div class="view-toolbar"><span>A clean sheet, ready to sing.</span><label class="switch-label"><input type="checkbox" id="sheet-chords" checked>Show chords</label><button class="text-button" data-action="print"><span class="icon" data-icon="printer"></span>Print / PDF</button></div>
+              <article id="song-sheet" class="song-sheet"></article>
+            </div>
+            <div id="rehearse-view" role="tabpanel" aria-labelledby="tab-rehearse" hidden>
+              <div class="view-toolbar"><span>Find your breath. Follow your words.</span><label class="switch-label"><input type="checkbox" id="loop-song">Loop song</label></div>
+              <div class="performance-stage" id="performance-stage"><div class="stage-top"><span class="live-dot"></span><span id="stage-section">READY WHEN YOU ARE</span><button class="icon-button" data-action="fullscreen" aria-label="Enter fullscreen rehearsal"><span class="icon" data-icon="expand"></span></button></div><div class="stage-lyrics"><p id="previous-line"></p><p id="current-line">Your voice starts here.</p><p id="next-line">Press play to follow your song.</p></div><div id="stage-chords" class="stage-chords"></div><div class="stage-bottom"><div class="beat-dots" id="beat-dots"></div><span id="stage-time">0:00 / 0:00</span></div></div>
+              <div class="rehearsal-settings"><label class="switch-label"><input type="checkbox" id="count-in" checked>One-bar count-in</label><label class="switch-label"><input type="checkbox" id="metronome">Metronome</label><button class="text-button" data-action="pitch"><span class="icon" data-icon="note"></span>Hear starting key</button></div>
+              <p class="subtle-help">Line timing follows your section bars and tempo. Rehearsal plays a guide click when enabled; you sing the vocals.</p>
+              <div class="memo-card"><div class="memo-heading"><span class="memo-icon icon" data-icon="mic"></span><div><h3>Catch the melody</h3><p>Record a quick vocal idea, then download your take.</p></div><button class="button record-button" data-action="record" id="record-button"><span class="record-dot"></span>Record</button></div><div id="memo-result"></div><p class="memo-status" id="memo-status" role="status">Microphone permission is requested only when you record.</p></div>
+            </div>
+            <footer class="workspace-footer">Made for the moment inspiration shows up.<span>WRITE. ARRANGE. SING.</span></footer>
+          </section>
+          <aside class="tools-panel" aria-label="Songwriting tools">
+            <div class="tools-heading"><span class="icon" data-icon="spark"></span>Make it sing</div>
+            <section class="tool-card arrangement-card"><div class="card-heading"><h2>Song arrangement</h2><span class="pill" id="section-count">7 sections</span></div><p>Your story, in the right order.</p><div id="arrangement" class="arrangement"></div><div class="arrangement-total"><span>Estimated length</span><strong id="total-duration">0:00</strong></div></section>
+            <section class="tool-card rhyme-card"><div class="card-heading"><h2>Find your next rhyme</h2><span class="icon" data-icon="spark"></span></div><p>A little nudge for the next line.</p><form id="rhyme-form" class="rhyme-search"><input id="rhyme-word" placeholder="Try “light”" value="light" aria-label="Word to rhyme" maxlength="40" pattern="[A-Za-z'-]+" required><button type="submit" class="icon-button" aria-label="Find rhymes"><span class="icon" data-icon="arrow"></span></button></form><div id="rhyme-results" class="rhyme-results"></div><small id="rhyme-source">Built-in rhyme bank · tap to copy</small></section>
+            <section class="tool-card transpose-card"><div class="card-heading"><h2>Find your vocal fit</h2><span class="icon" data-icon="note"></span></div><p>Shift the key and every chord with it.</p><div class="transpose-controls"><button class="icon-button" data-action="transpose-down" aria-label="Transpose down one semitone">−</button><strong id="transpose-key">G <small>major</small></strong><button class="icon-button" data-action="transpose-up" aria-label="Transpose up one semitone">+</button></div><button class="text-button pitch-button" data-action="pitch"><span class="icon" data-icon="volume"></span>Hear starting key</button></section>
+            <div class="inspiration-card"><span class="quote-mark">“</span><p>The best songs start with something only you could say.</p><small>MAKE A LITTLE SPACE FOR YOUR VOICE.</small><div class="mini-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+          </aside>
+        </div>
+      </main>
+      <div class="transport" aria-label="Rehearsal controls"><div class="transport-song"><div class="song-art"><span class="icon" data-icon="note"></span></div><div><strong id="transport-title">Room for the Light</strong><span id="transport-subtitle">G major · 92 BPM</span></div></div><div class="transport-center"><button class="icon-button" data-action="restart" aria-label="Restart rehearsal"><span class="icon" data-icon="restart"></span></button><button class="play-button" data-action="play" id="play-button" aria-label="Start rehearsal"><span class="icon" data-icon="play"></span></button><div class="transport-progress"><span id="elapsed">0:00</span><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Rehearsal position"><span id="transport-duration">0:00</span></div></div><div class="transport-tempo"><span class="icon" data-icon="meter"></span><strong id="transport-bpm">92</strong><small>BPM</small><button class="tap-button" data-action="tap" title="Tap repeatedly to set tempo">TAP</button></div></div>
+    </div>
+  </div>
+  <button id="sidebar-shade" class="sidebar-shade" data-action="menu" aria-label="Close songbook" hidden></button>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <input type="file" id="file-import" accept=".txt,.json,.lrc,text/plain,application/json" hidden>
+  <dialog id="app-dialog" aria-labelledby="dialog-title"><div class="dialog-top"><span class="dialog-eyebrow">MUSIC GO STUDIO</span><button class="icon-button" data-action="close-dialog" aria-label="Close dialog"><span class="icon" data-icon="close"></span></button></div><div id="dialog-content"></div></dialog>
+  <noscript><p class="noscript">Enable JavaScript to write and save songs in Music Go Studio.</p></noscript>
+</body>
+</html>
