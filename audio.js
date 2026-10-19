@@ -36,8 +36,10 @@ export class Rehearsal {
       try {this.ctx=await audioContext();this.clockAudio=true;} catch(e) {this.options.metronome=false;this.onError?.(e.message);if(this.mixer?.ready){this.pause();return;}}
     }
     if(!this.playing||epoch!==this.epoch) return;
-    if(this.position>=this.length) this.position=0;
-    const count=this.position===0 && options.countIn ? this.song.meter*60/this.song.bpm : 0;
+    this.rangeEnd=Math.min(this.length,options.end??this.length);
+    if(this.position>=this.rangeEnd) this.position=0;
+    if(this.mixer?.ready){try{this.preparing=true;const ready=await this.mixer.prepare(this.ctx,this.length);if(!this.playing||epoch!==this.epoch)return;this.preparing=false;if(!ready){this.pause();return;}}catch(error){if(epoch===this.epoch){this.pause();this.onError?.(error.message);}return;}}
+    const count=this.position===0&&options.countIn?this.song.meter*60/this.song.bpm:0;
     this.offset=this.position-count;
     this.started=performance.now();
     this.audioStarted=this.ctx?.currentTime||0;
@@ -49,10 +51,11 @@ export class Rehearsal {
     if(!this.playing) return;
     const beatSeconds=60/this.song.bpm;
     let position=this.clockPosition();
-    if(position>=this.length) {
+    const end=this.rangeEnd??this.length;
+    if(position>=end) {
       if(this.options.loop && this.length>0) {
         position%=this.length;this.offset=position;this.started=performance.now();this.audioStarted=this.ctx?.currentTime||0;this.scheduledBeat=Math.ceil(position/beatSeconds)-1;if(this.mixer?.ready)this.mixer.play(this.ctx,position,this.length);
-      } else {this.position=this.length;this.pause();this.onTick(this.length,false,0);this.onEnd?.();return;}
+      } else {this.pause();this.position=end;this.onTick(end,false,0);this.onEnd?.();return;}
     }
     this.position=position;
     const beat=Math.floor(position/beatSeconds);
@@ -71,11 +74,11 @@ export class Rehearsal {
     this.frame=requestAnimationFrame(this.tick);
   };
   clockPosition() {return this.offset+(this.clockAudio?this.ctx.currentTime-this.audioStarted:(performance.now()-this.started)/1000);}
-  pause() {if(this.playing&&this.started!==null)this.position=this.clockPosition();this.playing=false;this.epoch++;cancelAnimationFrame(this.frame);this.position=Math.max(0,Math.min(this.length||0,this.position));this.started=null;this.mixer?.stop();}
+  pause() {if(this.playing&&this.started!==null)this.position=this.clockPosition();this.playing=false;this.preparing=false;this.epoch++;cancelAnimationFrame(this.frame);this.position=Math.max(0,Math.min(this.length||0,this.position));this.started=null;this.mixer?.stop();}
   seek(seconds) {
     this.position=Math.max(0,Math.min(this.length,seconds));
     this.offset=this.position;this.started=performance.now();this.audioStarted=this.ctx?.currentTime||0;this.scheduledBeat=Math.ceil(this.position/(60/this.song.bpm))-1;
-    if(this.playing&&this.mixer?.ready)this.mixer.play(this.ctx,this.position,this.length);
+    if(this.playing&&!this.preparing&&this.mixer?.ready)this.mixer.play(this.ctx,this.position,this.length);
     this.onTick(this.position,this.playing,0);
   }
   async setMetronome(value) {

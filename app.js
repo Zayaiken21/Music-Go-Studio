@@ -17,7 +17,7 @@ let songs=[],activeId,view='write',showMeter=false,saveTimer,toastTimer,dragId=n
 let stageTimeline=[],stageIndex=-99,stageCounting=false,memoTitle='';
 const taps=[];
 const current=()=>songs.find(s=>s.id===activeId)||songs[0];
-const player=new Rehearsal(updatePlayhead,()=>{setPlayButton(false);toast('Take a breath. That’s your song.');},message=>toast(message));
+const player=new Rehearsal(updatePlayhead,()=>{setPlayButton(false);toast('Take a breath. That’s your song.');},message=>{toast(message);layerStudio.status(message,true);});
 const layerStudio=new LayerStudio({getSong:current,player,icon,notify:toast,save:saveAudioSettings,onLengthChanged:refreshAudioTransport,onPlay:()=>togglePlay(true),openView:()=>setView('layers'),download,slug});
 const memo=new VoiceMemo(status=>{$('#memo-status').textContent=status;},(blob,extension)=>{
   if(memoUrl) URL.revokeObjectURL(memoUrl);
@@ -66,10 +66,17 @@ function changed({editor=false,metadata=false}={}) {
   renderSidebar();renderSummary();if(view==='sheet')renderSheet();if(view==='layers')layerStudio.render();
   saveStatus('Saving…');clearTimeout(saveTimer);saveTimer=setTimeout(persist,350);
 }
+async function setSongTempo(value) {
+  const song=current(),oldBpm=song.bpm,bpm=clamp(Math.round(Number(value))||90,40,240);
+  if(bpm===oldBpm){renderMetadata();return;}
+  const resume=player.playing;player.pause();const position=player.position*oldBpm/bpm;
+  song.bpm=bpm;layerStudio.changeTempo(oldBpm,bpm);changed({metadata:true});player.seek(position);
+  if(resume)await togglePlay(view==='layers');
+}
 function slug(text) {return text.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase().slice(0,80)||'untitled-song';}
 function playbackLength() {return layerStudio.length;}
 function saveAudioSettings() {current().updatedAt=new Date().toISOString();saveStatus('Saving…');clearTimeout(saveTimer);saveTimer=setTimeout(persist,350);}
-function refreshAudioTransport() {player.song=current();player.length=playbackLength();player.position=clamp(player.position,0,player.length);if(!player.playing)player.seek(player.position);renderSummary();setPlayButton(player.playing);}
+function refreshAudioTransport() {stageTimeline=timeline(current());stageIndex=-99;player.song=current();player.length=playbackLength();player.position=clamp(player.position,0,player.length);if(!player.playing)player.seek(player.position);renderSummary();setPlayButton(player.playing);}
 function toast(message, undo=null) {
   clearTimeout(toastTimer);const box=$('#toast');
   box.innerHTML=esc(message)+(undo?' <button class="text-button" data-action="undo" style="color:#a7ccff;margin-left:9px">Undo</button>':'');
@@ -114,7 +121,7 @@ function renderSheet() {
   $('#song-sheet').innerHTML=`<h1 class="sheet-title">${esc(song.title||'Untitled song')}</h1>${song.artist?`<p class="sheet-artist">${esc(song.artist)}</p>`:''}<div class="sheet-meta">${esc(song.key)} ${esc(song.mode)} &nbsp; · &nbsp; ${song.bpm} BPM &nbsp; · &nbsp; ${song.meter} / ${song.meter===6?'8':'4'} &nbsp; · &nbsp; ${timeLabel(stats(song).seconds)} estimated</div>${song.sections.map((s,i)=>`<section class="sheet-section"><h3>${esc(sectionLabel(song,i))}${s.repeats>1?` (repeat ×${s.repeats})`:''}</h3>${chords&&s.chords?`<div class="sheet-chords">${esc(s.chords)}</div>`:''}<p>${esc((chords?s.lyrics:cleanInline(s.lyrics))||'♪')}</p></section>`).join('')}`;
 }
 function setView(next) {
-  view=next;
+  view=next;document.body.classList.toggle('editing-audio',view==='layers');
   ['write','sheet','layers','rehearse'].forEach(v=>{$(`#${v}-view`).hidden=v!==view;$(`#tab-${v}`).setAttribute('aria-selected',String(v===view));$(`#tab-${v}`).tabIndex=v===view?0:-1;});
   if(view==='sheet')renderSheet();
   if(view==='write')$$('.lyrics-input').forEach(resizeTextarea);
@@ -150,6 +157,7 @@ async function togglePlay(stayView=false) {
   if(player.playing){player.pause();setPlayButton(false);return;}
   if(layerStudio.busy){toast('Your audio is still loading. Give it a moment.');return;}
   if(!layerStudio.mixer.ready&&!current().sections.some(s=>s.lyrics.trim()||s.type==='Instrumental')){toast('Add lyrics, an audio layer, or an instrumental section before rehearsing.');return;}
+  layerStudio.mixer.auditionClip=null;layerStudio.mixer.auditionTrack=null;
   if(!stayView)setView('rehearse');setPlayButton(true);
   await player.play({countIn:!stayView&&$('#count-in').checked,metronome:$('#metronome').checked,loop:$('#loop-song').checked});
   setPlayButton(player.playing);
@@ -178,7 +186,7 @@ function addSectionDialog() {
   dialog(`<h2 class="dialog-title" id="dialog-title">Give the song a new turn.</h2><p class="dialog-description">Add a section, then move it wherever it belongs.</p><div class="template-grid">${TYPES.map(type=>`<button class="template-button" data-action="insert-section" data-type="${type}"><strong>${type}</strong><small>${{Verse:'Move your story forward.',Chorus:'Bring the hook home.',Bridge:'A new point of view.',Intro:'Set the feeling.','Pre-Chorus':'Build toward the hook.','Post-Chorus':'Let the feeling linger.',Instrumental:'Let the music speak.',Outro:'Leave a lasting note.'}[type]}</small></button>`).join('')}</div>`);
 }
 function helpDialog() {
-  dialog(`<h2 class="dialog-title" id="dialog-title">A little room to create.</h2><p class="dialog-description">Write a line. Find its rhythm. Sing it your way.</p><ol class="help-list"><li><strong>Write:</strong> give each section its own lyrics, chords, and optional vocal direction. Move sections with the arrows or drag their handle.</li><li><strong>Find the flow:</strong> syllable counts are approximate for English. Sing the line out loud to check its natural stress and breath.</li><li><strong>Rehearse:</strong> bars × pulses per bar set a section’s length. Each nonempty line receives equal time. Set bars to fit your melody. In 6/8, BPM counts eighth-note pulses.</li><li><strong>Transpose:</strong> + and − move the key, section chords, and inline chords like [Am] together. Choosing a key directly only changes its label.</li><li><strong>Save:</strong> songs autosave on this device. Download a JSON song or songbook backup before clearing browser data or switching devices. Import restores a backup as new songs.</li><li><strong>Layers:</strong> import recordings in Audio layers, adjust their volume, pan, start, trim, and loop, and play them alongside your lyrics. WAV mix downloads audible layers. Layer files save on this device; JSON only keeps settings. Relink source files when moving devices.</li><li><strong>Capture:</strong> Record uses your real microphone. Download the take or Add take as audio layer to keep it. Use headphones when recording over a backing track.</li><li><strong>Offline:</strong> after the first full visit, the app works without a connection. Rhyme lookup falls back to a small built-in word bank.</li></ol>${recoveryData?'<div class="export-note">Your original saved data is preserved in this session. Download it before choosing to start fresh.</div><div class="dialog-actions"><button class="button" data-action="download-recovery">Download saved data</button><button class="button danger-button" data-action="reset-storage">Start fresh</button></div>':''}<div class="dialog-actions"><button class="button primary" data-action="close-dialog">Back to the song</button></div>`);
+  dialog(`<h2 class="dialog-title" id="dialog-title">A little room to create.</h2><p class="dialog-description">Write a line. Find its rhythm. Sing it your way.</p><ol class="help-list"><li><strong>Write:</strong> give each section its own lyrics, chords, and optional vocal direction. Move sections with the arrows or drag their handle.</li><li><strong>Find the flow:</strong> syllable counts are approximate for English. Sing the line out loud to check its natural stress and breath.</li><li><strong>Rehearse:</strong> bars × pulses per bar set a section’s length. Each nonempty line receives equal time. Set bars to fit your melody. In 6/8, BPM counts eighth-note pulses.</li><li><strong>Transpose:</strong> + and − move the key, section chords, and inline chords like [Am] together. Choosing a key directly only changes its label.</li><li><strong>Save:</strong> songs autosave on this device. Download a JSON song or songbook backup before clearing browser data or switching devices. Import restores a backup as new songs.</li><li><strong>Layers:</strong> drag separate audio clips onto shared tracks. Select a clip to split, trim, duplicate, loop, or preview it. Song BPM changes the actual audio tempo with pitch preserved; set Original BPM for recordings made at another tempo. WAV mix downloads audible layers. Layer files save on this device; JSON only keeps settings. Relink source files when moving devices.</li><li><strong>Capture:</strong> Record uses your real microphone. Download the take or Add take as audio layer to keep it. Use headphones when recording over a backing track.</li><li><strong>Offline:</strong> after the first full visit, the app works without a connection. Rhyme lookup falls back to a small built-in word bank.</li></ol>${recoveryData?'<div class="export-note">Your original saved data is preserved in this session. Download it before choosing to start fresh.</div><div class="dialog-actions"><button class="button" data-action="download-recovery">Download saved data</button><button class="button danger-button" data-action="reset-storage">Start fresh</button></div>':''}<div class="dialog-actions"><button class="button primary" data-action="close-dialog">Back to the song</button></div>`);
 }
 function songOptionsDialog() {
   dialog(`<h2 class="dialog-title" id="dialog-title">${esc(current().title||'Untitled song')}</h2><p class="dialog-description">Keep exploring an idea, or make space for a new one.</p><div class="options-list"><button class="button" data-action="duplicate-song">${icon('copy')}Duplicate this song</button><button class="button" data-action="export">${icon('download')}Export this song</button><button class="button danger-button" data-action="confirm-delete-song">${icon('trash')}Delete this song</button></div>`);
@@ -266,7 +274,7 @@ document.addEventListener('click',async e=>{
     case 'tap':{
       const now=performance.now();if(taps.length&&now-taps.at(-1)>2000)taps.length=0;taps.push(now);if(taps.length>7)taps.shift();
       if(taps.length<2){toast('Keep tapping to set your tempo.');break;}
-      const intervals=taps.slice(1).map((v,i)=>v-taps[i]).sort((a,b)=>a-b);song.bpm=clamp(Math.round(60000/intervals[Math.floor(intervals.length/2)]),40,240);changed({metadata:true});break;
+      const intervals=taps.slice(1).map((v,i)=>v-taps[i]).sort((a,b)=>a-b);await setSongTempo(60000/intervals[Math.floor(intervals.length/2)]);break;
     }
     case 'record':{
       if(memo.starting)break;
@@ -332,6 +340,7 @@ document.addEventListener('change',async e=>{
     return;
   }
   const metadata={'song-genre':'genre','song-key':'key','song-mode':'mode','song-bpm':'bpm','song-meter':'meter'};
+  if(el.id==='song-bpm'){await setSongTempo(el.value);return;}
   if(metadata[el.id]){current()[metadata[el.id]]=['song-bpm','song-meter'].includes(el.id)?Number(el.value):el.value;current().bpm=clamp(Math.round(current().bpm)||90,40,240);changed({metadata:true});}
   if(el.id==='sheet-chords')renderSheet();
   if(el.name==='export-format')updateExportPreview();
