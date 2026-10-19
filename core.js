@@ -1,4 +1,4 @@
-import {normalizeLayer,MAX_LAYERS,MAX_CLIPS} from './layer-core.js';
+import {normalizeLayer,MAX_LAYERS,MAX_CLIPS} from './layer-core.js?v=1.2.1';
 export const TYPES = ['Intro', 'Verse', 'Pre-Chorus', 'Chorus', 'Post-Chorus', 'Bridge', 'Instrumental', 'Outro'];
 export const KEYS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 export const uid = () => globalThis.crypto?.randomUUID?.() || `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;

@@ -1,7 +1,7 @@
-import {uid,esc,stats,timeLabel,clamp} from './core.js';
-import {MAX_LAYERS,MAX_CLIPS,normalizeLayer,normalizeClip,allClips,clipTiming,clipRate,clipEnd,sessionLength,waveformPeaks,layerGain,placeClip,snapPosition,splitClip,trimClip,rescaleArrangement} from './layer-core.js';
-import {LayerMixer} from './layers.js';
-import {AudioStore} from './audio-store.js';
+import {uid,esc,stats,timeLabel,clamp} from './core.js?v=1.2.1';
+import {MAX_LAYERS,MAX_CLIPS,normalizeLayer,normalizeClip,allClips,clipTiming,clipRate,clipEnd,sessionLength,waveformPeaks,layerGain,placeClip,snapPosition,splitClip,trimClip,rescaleArrangement} from './layer-core.js?v=1.2.1';
+import {LayerMixer} from './layers.js?v=1.2.1';
+import {AudioStore} from './audio-store.js?v=1.2.1';
 const $=selector=>document.querySelector(selector);
 const precise=s=>`${Math.floor(Math.max(0,s)/60)}:${(Math.max(0,s)%60).toFixed(2).padStart(5,'0')}`;
 const number=v=>Number(v.toFixed(3));

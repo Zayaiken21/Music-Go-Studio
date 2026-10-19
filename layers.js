@@ -1,6 +1,6 @@
-import {audioContext} from './audio.js';
-import {allClips,clipTiming,clipRate,clipEnd,layerGain,encodeWav,MAX_FILE_BYTES,MAX_DECODED_BYTES} from './layer-core.js';
-import {processPCM,levelGain} from './audio-process.js';
+import {audioContext} from './audio.js?v=1.2.1';
+import {allClips,clipTiming,clipRate,clipEnd,layerGain,encodeWav,MAX_FILE_BYTES,MAX_DECODED_BYTES} from './layer-core.js?v=1.2.1';
+import {processPCM,levelGain} from './audio-process.js?v=1.2.1';
 const adjacent=(a,b)=>Math.abs(a-b)<.002;
 export class LayerMixer {
   constructor(){this.layers=[];this.buffers=new Map();this.cache=new Map();this.levels=new WeakMap();this.nodes=[];this.volume=.85;this.bpm=90;this.smooth=true;this.ctx=null;this.master=null;this.limiter=null;this.prepareVersion=0;this.auditionClip=null;this.auditionTrack=null;}
@@ -36,7 +36,7 @@ export class LayerMixer {
     const channels=Array.from({length:Math.min(2,buffer.numberOfChannels)},(_,i)=>buffer.getChannelData(i).slice());
     if(typeof Worker==='undefined')return processPCM(channels,buffer.sampleRate,options);
     return new Promise((resolve,reject)=>{
-      const worker=new Worker(new URL('./audio-process.js',import.meta.url),{type:'module'});
+      const worker=new Worker(new URL('./audio-process.js?v=1.2.1',import.meta.url),{type:'module'});
       worker.onmessage=event=>{worker.terminate();event.data.error?reject(new Error(event.data.error)):resolve(event.data);};
       worker.onerror=()=>{worker.terminate();reject(new Error('Audio processing could not start. Reload the page and try again.'));};
       worker.postMessage({channels,sampleRate:buffer.sampleRate,options},channels.map(channel=>channel.buffer));

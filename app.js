@@ -1,6 +1,6 @@
-import {TYPES,KEYS,uid,clamp,esc,lines,words,syllables,section,createSong,demoSong,normalizeSong,sectionLabel,sectionSeconds,timeLabel,stats,timeline,exportLyrics,importLyrics,transposeSong,localRhymes,cleanInline} from './core.js';
-import {Rehearsal,VoiceMemo,playPitch} from './audio.js';
-import {LayerStudio} from './layer-ui.js';
+import {TYPES,KEYS,uid,clamp,esc,lines,words,syllables,section,createSong,demoSong,normalizeSong,sectionLabel,sectionSeconds,timeLabel,stats,timeline,exportLyrics,importLyrics,transposeSong,localRhymes,cleanInline} from './core.js?v=1.2.1';
+import {Rehearsal,VoiceMemo,playPitch} from './audio.js?v=1.2.1';
+import {LayerStudio} from './layer-ui.js?v=1.2.1';
 
 const $=selector=>document.querySelector(selector);
 const $$=selector=>[...document.querySelectorAll(selector)];
@@ -369,4 +369,4 @@ window.addEventListener('resize',()=>{if(view==='write')$$('.lyrics-input').forE
 load();renderMetadata();renderEditor();renderSidebar();renderSummary();stageTimeline=timeline(current());player.load(current(),playbackLength());setView('write');layerStudio.loadSong();
 $('#rhyme-results').innerHTML=localRhymes('light').slice(0,9).map(w=>`<button class="rhyme-chip" data-action="copy-rhyme" data-word="${w}">${w}</button>`).join('');
 if(storageBlocked)saveStatus('Recovery needed',true);else persist();
-if('serviceWorker' in navigator && ['http:','https:'].includes(location.protocol))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+if('serviceWorker' in navigator && ['http:','https:'].includes(location.protocol))navigator.serviceWorker.register('./sw.js?v=1.2.1').catch(()=>{});

@@ -130,5 +130,12 @@ test('rehearsal waits for processed audio and ties count-in, seek, pause, and pr
 });
 test('failed storage retains playable session audio without claiming it was saved',async()=>{const store=new AudioStore(),asset={id:'session-only',blob:new Blob(['audio'])};await assert.rejects(store.put(asset),/storage is unavailable/);assert.equal(await store.get(asset.id),asset);});
 test('new timeline controls have markup anchors and the worker is cached offline',async()=>{
-  const html=await readFile(new URL('../index.html',import.meta.url),'utf8'),ui=await readFile(new URL('../layer-ui.js',import.meta.url),'utf8'),sw=await readFile(new URL('../sw.js',import.meta.url),'utf8');const dynamic=['clip-fit-bars'];for(const match of ui.matchAll(/\$\('#([\w-]+)'\)/g))assert.ok(html.includes(`id="${match[1]}"`)||dynamic.includes(match[1]),`Missing ${match[1]}`);for(const module of ['layers.js','layer-core.js','audio-store.js','audio-process.js','layer-ui.js'])assert.ok(sw.includes(`./${module}`));assert.ok(html.includes('aria-controls="layers-view"'));assert.ok(html.includes('id="audio-snap"'));assert.ok(html.includes('id="clip-inspector"'));
+  const html=await readFile(new URL('../index.html',import.meta.url),'utf8'),ui=await readFile(new URL('../layer-ui.js',import.meta.url),'utf8'),sw=await readFile(new URL('../sw.js',import.meta.url),'utf8');const dynamic=['clip-fit-bars'];for(const match of ui.matchAll(/\$\('#([\w-]+)'\)/g))assert.ok(html.includes(`id="${match[1]}"`)||dynamic.includes(match[1]),`Missing ${match[1]}`);for(const module of ['layers.js','layer-core.js','audio-store.js','audio-process.js','layer-ui.js'])assert.ok(sw.includes(`./${module}?v=1.2.1`));assert.ok(html.includes('aria-controls="layers-view"'));assert.ok(html.includes('id="audio-snap"'));assert.ok(html.includes('id="clip-inspector"'));
+});
+
+test('entrypoint, module imports, and worker all use the release version to avoid stale app code',async()=>{
+  const version=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8')).version,html=await readFile(new URL('../index.html',import.meta.url),'utf8'),sw=await readFile(new URL('../sw.js',import.meta.url),'utf8');
+  assert.ok(html.includes(`src="app.js?v=${version}"`));assert.ok(html.includes(`href="styles.css?v=${version}"`));
+  for(const name of ['app.js','core.js','layers.js','layer-ui.js']){const source=await readFile(new URL('../'+name,import.meta.url),'utf8');for(const match of source.matchAll(/from ['"](\.\/[^'"]+)['"]/g))assert.ok(match[1].endsWith(`?v=${version}`),`${name}: ${match[1]}`);}
+  assert.ok((await readFile(new URL('../layers.js',import.meta.url),'utf8')).includes(`audio-process.js?v=${version}`));assert.ok(sw.includes("cache:'no-cache'"));
 });
